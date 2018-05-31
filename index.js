@@ -12,7 +12,7 @@ async function run() {
 
 		await buyStocks(driver);
 		await sellStocks(driver);
-
+		await collectInterest(driver);
 	} catch(e) {
 		console.log('Error while running\n', e);
 	} finally {
@@ -25,6 +25,7 @@ async function buyStocks(driver) {
 	const username = process.env.USERNAME;
 	const password = process.env.PASSWORD;
 	const buyPrice = 20;
+	const numShares = 1000;
 	const xpath = {
 		loginLink: '//*[@id="header"]/table/tbody/tr[1]/td[3]/a[1]',
 		usernameField: '//*[@id="templateLoginPopupUsername"]',
@@ -76,7 +77,7 @@ async function buyStocks(driver) {
 		await stockLink.click();
 
 		let stockNumberField = await driver.wait(until.elementLocated(By.xpath(xpath.stockNumberField)));
-		await stockNumberField.sendKeys('1000', Key.RETURN);
+		await stockNumberField.sendKeys(numShares.toString(), Key.RETURN);
 	}
 }
 
@@ -115,17 +116,29 @@ async function sellStocks(driver) {
 	stockInfo = stockInfo.filter((stock) => stock.price >= sellPrice);
 	stockInfo = stockInfo.sort((a, b) => a.price - b.price);
 
-	for (stock of stockInfo) {
-		await stock.arrow.click();
+	if (stockInfo.length > 0) {
+		for (stock of stockInfo) {
+			await stock.arrow.click();
 
-		let shares = await stock.shareTable.findElements(By.css('tbody tr:not(:first-child)'));
+			let shares = await stock.shareTable.findElements(By.css('tbody tr:not(:first-child)'));
 
-		for (share of shares) {
-			let numShares = await share.findElement(By.css('td:first-child')).getText();
-			let shareField = await share.findElement(By.css('input'));
-			await shareField.sendKeys(numShares);
+			for (share of shares) {
+				let numShares = await share.findElement(By.css('td:first-child')).getText();
+				let shareField = await share.findElement(By.css('input'));
+				await shareField.sendKeys(numShares);
+			}
 		}
+
+		await driver.findElement(By.xpath(xpath.sellButton)).click();
+	}
+}
+
+async function collectInterest(driver) {
+	const xpath = {
+		button: '//*[@id="content"]/table/tbody/tr/td[2]/table[2]/tbody/tr/td/div/table/tbody/tr[2]/td/div/form/input[2]',
 	}
 
-	await driver.findElement(By.xpath(xpath.sellButton)).click();
+	await driver.navigate().to('http://www.neopets.com/bank.phtml');
+	let button = await driver.wait(until.elementLocated(By.xpath(xpath.button)));
+	await button.click();
 }
