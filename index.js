@@ -4,28 +4,35 @@ const { Builder, By, Key, until } = require('selenium-webdriver');
 run();
 
 async function run() {
-	const broswer = process.env.BROWSER;
-	const driver = await new Builder().forBrowser(broswer).build();
+	const browser = process.env.BROWSER;
+	const username = process.env.USERNAME;
+	const password = process.env.PASSWORD;
+
+	if (!browser || !username || !password) {
+		console.error('Error reading environment variables. Ensure you have created a .env file with the variables: BROWSER, USERNAME, and PASSWORD.')
+		return;
+	}
+
+	const driver = await new Builder().forBrowser(browser).build();
 
 	try {
 		await driver.manage().window().maximize();
 		await driver.get('http://www.neopets.com');
 
-		await login(driver);
+		await login(driver, username, password);
 		await collectInterest(driver);
-		await buyStocks(driver);
-		await sellStocks(driver);
+		await buyStocks(driver, 1000, 20);
+		await sellStocks(driver, 30);
 	} catch(e) {
-		console.log('Error while running\n', e);
+		console.error('Error while running.\n', e);
 	} finally {
+		console.log('Bot completed.');
 		await driver.sleep(3000);
 		await driver.quit();
 	}
 }
 
-async function login(driver) {
-	const username = process.env.USERNAME;
-	const password = process.env.PASSWORD;
+async function login(driver, username, password) {
 	const xpath = {
 		loginLink: '//*[@id="header"]/table/tbody/tr[1]/td[3]/a[1]',
 		usernameField: '//*[@id="templateLoginPopupUsername"]',
@@ -38,6 +45,8 @@ async function login(driver) {
 	await driver.findElement(By.xpath(xpath.usernameField)).sendKeys(username);
 	await driver.findElement(By.xpath(xpath.passwordField)).sendKeys(password, Key.RETURN);
 	await driver.wait(until.elementLocated(By.xpath(xpath.logoutLink)));
+
+	console.log('Login completed.');
 }
 
 async function collectInterest(driver) {
@@ -51,18 +60,18 @@ async function collectInterest(driver) {
 
 	try {
 		await driver.findElement(By.xpath(xpath.button)).click();
+		await driver.sleep(3000);
+		console.log('Interest collection completed.');
 	} catch (e) {
-		if (e.name !== 'NoSuchElementError') {
-			console.log('Bank error', e);
+		if (e.name === 'NoSuchElementError') {
+			console.log('Interest already collected.')
+		} else {
+			console.error('Error collecting bank interest.', e);
 		}
 	}
-
-	await driver.sleep(3000);
 }
 
-async function buyStocks(driver) {
-	const buyPrice = 20;
-	const numShares = 10;
+async function buyStocks(driver, numShares, buyPrice) {
 	const xpath = {
 		stockField: '//*[@id="content"]/table/tbody/tr/td[2]/div[2]/form/input[2]',
 		stockTable: '//*[@id="content"]/table/tbody/tr/td[2]/div[2]/table/tbody',
@@ -90,7 +99,7 @@ async function buyStocks(driver) {
 			});
 		} catch (e) {
 			if (e.name !== 'NoSuchElementError') {
-				console.log('Stock error', e);
+				console.error('Error buying stocks.', e);
 			}
 
 			continue;
@@ -111,10 +120,10 @@ async function buyStocks(driver) {
 	}
 
 	await driver.sleep(3000);
+	console.log('Buying stocks completed.');
 }
 
-async function sellStocks(driver) {
-	const sellPrice = 30;
+async function sellStocks(driver, sellPrice) {
 	const xpath = {
 		stockTable: '//*[@id="postForm"]/table[1]/tbody',
 		sellButton: '//*[@id="show_sell"]/center/input',
@@ -139,7 +148,7 @@ async function sellStocks(driver) {
 			});
 		} catch (e) {
 			if (e.name !== 'NoSuchElementError') {
-				console.log('Stock error', e);
+				console.error('Error selling stocks.', e);
 			}
 
 			continue;
@@ -166,4 +175,5 @@ async function sellStocks(driver) {
 	}
 
 	await driver.sleep(3000);
+	console.log('Selling stocks completed.');
 }
